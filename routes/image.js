@@ -52,80 +52,6 @@ var sample = {
 
 var baseUrl = "https://www.ssactivewear.com/marketing/imagelibrary?";
 
-const array_chunks = (array, chunk_size) =>
-  Array(Math.ceil(array.length / chunk_size))
-    .fill()
-    .map((_, index) => index * chunk_size)
-    .map((begin) => array.slice(begin, begin + chunk_size));
-
-function generateFinalUrl(params) {
-  params.md = params.md.join("_");
-  params.pd = params.pd.join("_");
-  const stringedParams = new URLSearchParams(params).toString();
-  const finalUrl = baseUrl + stringedParams;
-  return finalUrl;
-}
-
-function generateDownloadableLink() {
-  return Object.keys(groupedMissingSns).reduce(function (chunks, item) {
-    let groupedItems = groupedMissingSns[item];
-    let [brandId, styleId] = item.split("-");
-
-    // console.log(item.split('-'))
-
-    let params = {
-      id: styleId,
-      bd: "",
-      md: [],
-      pd: [],
-      b: brandId,
-    };
-
-    groupedItems.forEach(function (product) {
-      // console.log(product);
-      if (product.parts.styleImage === false) {
-        params.md.push(`${product.productId}-F`);
-      }
-
-      if (product.parts.colorFrontImage === false) {
-        params.pd.push(`${product.productId}-F`);
-      }
-
-      if (product.parts.colorBackImage === false) {
-        params.pd.push(`${product.productId}-B`);
-      }
-      // if(product.parts.colorSideImage) {
-      //   params.pd.push(`${product.productId}-S`);
-      //   params.pd.push(`${product.productId}-DS`);
-      // }
-    });
-
-    const generateMoreLinks = [];
-
-    const { id, b, bd } = params;
-
-    var modelChunks = array_chunks(params.md, 10);
-
-    modelChunks.forEach((mdChunk) => {
-      generateMoreLinks = [...generateMoreLinks];
-    });
-
-    var productChunks = array_chunks(params.pd, 10);
-
-    productChunks.forEach((pdChunk) => {});
-
-    // params.md = params.md.join('_')
-    params.pd = params.pd.join("_");
-
-    // params.md = params.md.join('_')
-    params.pd = params.pd.join("_");
-
-    // console.log(params);
-
-    return [...chunks, finalUrl];
-  }, []);
-}
-
 const chunk = (inputArray, perChunk) => {
   return inputArray.reduce((resultArray, item, index) => {
     const chunkIndex = Math.floor(index / perChunk);
@@ -138,20 +64,53 @@ const chunk = (inputArray, perChunk) => {
   }, []);
 };
 
-function generateDownloadableLinkSirAldrin() {
-  const baseUrl = "https://www.ssactivewear.com/marketing/imagelibrary?";
-
+function allColorsGenerateLink() {
   return Object.keys(groupedMissingSns).reduce((chunks, key) => {
     const [brandId, styleId] = key.split("-");
     const items = groupedMissingSns[key];
 
     const params = items.reduce(
       (result, { productId, parts }) => {
-        if (parts.styleImage === false) result.md.push(`${productId}-F`);
-
         if (parts.colorFrontImage === false) result.pd.push(`${productId}-F`);
 
         if (parts.colorBackImage === false) result.pd.push(`${productId}-B`);
+
+        return result;
+      },
+      {
+        id: styleId,
+        bd: "",
+        b: brandId,
+        pd: [],
+        md: [],
+      }
+    );
+
+    const pds = chunk(params.pd, 10).map(
+      (productIds) =>
+        baseUrl +
+        new URLSearchParams({
+          ...params,
+          pd: productIds.join("_"),
+          md: [],
+        })
+    );
+
+    return [...chunks, ...pds];
+  }, []);
+}
+
+function modelOnlyColorGenerateLink() {
+  return Object.keys(groupedMissingSns).reduce((chunks, key) => {
+    const [brandId, styleId] = key.split("-");
+    const items = groupedMissingSns[key];
+
+    const params = items.reduce(
+      (result, { productId, parts }) => {
+        if (parts.styleImage === false){ 
+          result.md.push(`${productId}-F`)
+          result.pd.push(`${productId}-F`)
+        }
 
         return result;
       },
@@ -189,8 +148,53 @@ function generateDownloadableLinkSirAldrin() {
   }, []);
 }
 
-router.get("/generate-links", function (req, res, next) {
-  res.status(200).json(generateDownloadableLinkSirAldrin());
+function sidesOnlyColorGenerateLink() {
+  return Object.keys(groupedMissingSns).reduce((chunks, key) => {
+    const [brandId, styleId] = key.split("-");
+    const items = groupedMissingSns[key];
+
+    const params = items.reduce(
+      (result, { productId, parts }) => {
+        if (parts.colorSideImage === false) {
+          result.pd.push(`${productId}-S`);
+          result.pd.push(`${productId}-DS`);
+        }
+
+        return result;
+      },
+      {
+        id: styleId,
+        bd: "",
+        b: brandId,
+        pd: [],
+        md: [],
+      }
+    );
+
+    const pds = chunk(params.pd, 10).map(
+      (productIds) =>
+        baseUrl +
+        new URLSearchParams({
+          ...params,
+          pd: productIds.join("_"),
+          md: [],
+        })
+    );
+
+    return [...chunks, ...pds];
+  }, []);
+}
+
+router.get("/all-colors-generate-links", function (req, res, next) {
+  res.status(200).json(allColorsGenerateLink());
+});
+
+router.get("/model-generate-links", function (req, res, next) {
+  res.status(200).json(modelOnlyColorGenerateLink());
+});
+
+router.get("/sides-only-generate-links", function (req, res, next) {
+  res.status(200).json(sidesOnlyColorGenerateLink());
 });
 
 /* GET users listing. */
